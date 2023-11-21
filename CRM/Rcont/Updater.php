@@ -177,14 +177,14 @@ class CRM_Rcont_Updater {
     $query = civicrm_api3('ContributionRecur', 'get', array('id' => array('IN' => $recurring_contribution_ids), 'option.limit' => 99999));
     $rcontributions = $query['values'];
     $completed_status_ids = array(
-      CRM_Core_OptionGroup::getValue('contribution_status', 'Completed', 'name'),
-      CRM_Core_OptionGroup::getValue('contribution_status', 'Cancelled', 'name'),
-      CRM_Core_OptionGroup::getValue('contribution_status', 'Failed', 'name'),
-      CRM_Core_OptionGroup::getValue('contribution_status', 'Refunded', 'name'),
+      CRM_Rcont_Updater::getOptionValueValue('contribution_status', 'Completed'),
+      CRM_Rcont_Updater::getOptionValueValue('contribution_status', 'Cancelled'),
+      CRM_Rcont_Updater::getOptionValueValue('contribution_status', 'Failed'),
+      CRM_Rcont_Updater::getOptionValueValue('contribution_status', 'Refunded'),
     );
     $open_status_ids = array(
-      CRM_Core_OptionGroup::getValue('contribution_status', 'Pending', 'name'),
-      CRM_Core_OptionGroup::getValue('contribution_status', 'In Progress', 'name'),
+      CRM_Rcont_Updater::getOptionValueValue('contribution_status', 'Pending'),
+      CRM_Rcont_Updater::getOptionValueValue('contribution_status', 'In Progress'),
     );
     $log = array();
 
@@ -209,7 +209,7 @@ class CRM_Rcont_Updater {
 
       // all ended recurring contributions should have an end_date
       if (empty($rcontribution['end_date'])) {
-        if ($rcontribution['contribution_status_id'] == CRM_Core_OptionGroup::getValue('contribution_status', 'Completed', 'name')) {
+        if ($rcontribution['contribution_status_id'] == CRM_Rcont_Updater::getOptionValueValue('contribution_status', 'Completed')) {
           $log[] = "PROBLEM: Recurring contribution [{$rcontribution['id']}] is closed/ended/cancelled but has no end date.";
           // TODO: set to last contribution?
         }
@@ -218,7 +218,7 @@ class CRM_Rcont_Updater {
           if (!in_array($rcontribution['contribution_status_id'], $completed_status_ids)) {
             $log[] = "PROBLEM: Recurring contribution [{$rcontribution['id']}] has an end date in the past, but is not closed/ended/cancelled.";
             if (!empty($params['contribution_status_id'])) {
-              $rcontribution['contribution_status_id'] = CRM_Core_OptionGroup::getValue('contribution_status', 'Completed', 'name');
+              $rcontribution['contribution_status_id'] = CRM_Rcont_Updater::getOptionValueValue('contribution_status', 'Completed');
               civicrm_api3('ContributionRecur', 'create', array('id' => $rcontribution['id'], 'contribution_status_id' => $rcontribution['contribution_status_id']));
               $log[] = "FIXED: Recurring contribution [{$rcontribution['id']}] was set to 'Completed'.";
             } else {
@@ -251,7 +251,7 @@ class CRM_Rcont_Updater {
             $last_rcur['end_date']         = $rcontribution['start_date'];
             $last_rcur_changes['end_date'] = $last_rcur['end_date'];
             if (!in_array($last_rcur['contribution_status_id'], $completed_status_ids)) {
-              $last_rcur['contribution_status_id']         = CRM_Core_OptionGroup::getValue('contribution_status', 'Completed', 'name');
+              $last_rcur['contribution_status_id']         = CRM_Rcont_Updater::getOptionValueValue('contribution_status', 'Completed');
               $last_rcur_changes['contribution_status_id'] = $last_rcur['contribution_status_id'];
             }
           }
@@ -280,6 +280,26 @@ class CRM_Rcont_Updater {
     return $log;
   }
 
+  /**
+   * Gets value of OptionValue
+   *
+   * @param $optionGroupName
+   * @param $optionValueName
+   * @return null|string
+   */
+  public static function getOptionValueValue($optionGroupName, $optionValueName) {
+    try {
+      $value = civicrm_api3('OptionValue', 'getvalue', [
+        'return' => "value",
+        'option_group_id' => $optionGroupName,
+        'name' => $optionValueName,
+      ]);
+    } catch (CiviCRM_API3_Exception $e) {
+      $value = null;
+    }
+
+    return $value;
+  }
 
 }
 
